@@ -1,76 +1,134 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Pediatric Genetic WES Risk Calculator</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WES Diagnostic Yield Risk Calculator</title>
   <style>
     body {
-      font-family: Arial;
+      font-family: Arial, sans-serif;
+      background: #f9f9f9;
+      padding: 2rem;
+    }
+    .container {
       max-width: 600px;
       margin: auto;
-      padding: 20px;
+      background: #fff;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     }
-    input, select {
+    h2 {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+    label {
+      display: block;
+      margin-top: 1rem;
+    }
+    input, select, button {
       width: 100%;
-      padding: 10px;
-      margin: 5px 0 15px;
+      padding: 0.5rem;
+      margin-top: 0.5rem;
     }
     .result {
-      margin-top: 20px;
-      font-size: 1.2em;
+      margin-top: 2rem;
       font-weight: bold;
+      text-align: center;
     }
   </style>
 </head>
 <body>
-  <h2>Pediatric Genetic WES Risk Calculator</h2>
-  <p>Estimate the likelihood of a positive WES diagnosis using clinical features.</p>
+  <div class="container">
+    <h2>WES Diagnostic Yield Risk Calculator</h2>
+    <form id="riskForm">
+      <label for="age">Age at Onset (in years):</label>
+      <input type="number" id="age" step="0.1" required />
 
-  <form id="riskForm">
-    <label for="ageOnset">Age at Onset:</label>
-    <input type="number" id="ageOnset" name="ageOnset" required>
+      <label for="syndromic">Syndromic Presentation:</label>
+      <select id="syndromic">
+        <option value="1">Yes</option>
+        <option value="0">No</option>
+      </select>
 
-    <label for="system">Multi-System Involvement (1=yes, 0=no):</label>
-    <select id="system" name="system">
-      <option value="1">Yes</option>
-      <option value="0">No</option>
-    </select>
+      <label for="delayed">Delayed Developmental Milestones:</label>
+      <select id="delayed">
+        <option value="1">Yes</option>
+        <option value="0">No</option>
+      </select>
 
-    <label for="delay">Diagnostic Delay (months):</label>
-    <input type="number" id="delay" name="delay" required>
+      <label for="seizures">History of Seizures:</label>
+      <select id="seizures">
+        <option value="1">Yes</option>
+        <option value="0">No</option>
+      </select>
 
-    <label for="consang">Consanguinity (1=yes, 0=no):</label>
-    <select id="consang" name="consang">
-      <option value="1">Yes</option>
-      <option value="0">No</option>
-    </select>
+      <label for="positive">Family History of Genetic Disorder:</label>
+      <select id="positive">
+        <option value="1">Yes</option>
+        <option value="0">No</option>
+      </select>
 
-    <button type="button" onclick="calculateRisk()">Calculate Risk</button>
-  </form>
+      <label for="consang">Parental Consanguinity:</label>
+      <select id="consang">
+        <option value="1">Yes</option>
+        <option value="0">No</option>
+      </select>
 
-  <div class="result" id="result"></div>
+      <button type="submit">Calculate Risk</button>
+    </form>
+
+    <div class="result" id="result"></div>
+  </div>
 
   <script>
-    function calculateRisk() {
-      let age = parseFloat(document.getElementById("ageOnset").value);
-      let system = parseInt(document.getElementById("system").value);
-      let delay = parseFloat(document.getElementById("delay").value);
-      let consang = parseInt(document.getElementById("consang").value);
+    // Logistic regression coefficients (example values — replace with your final model's coefficients)
+    const coef = {
+      intercept: -1.2,
+      age: -0.15,
+      syndromic: 1.1,
+      delayed: 0.8,
+      seizures: 0.7,
+      positive: 0.6,
+      consang: 0.9
+    };
 
-      // Logistic regression model
-      let logOdds = -1.52 + (0.27 * (age < 12 ? 1 : 0)) + (0.48 * system) + (0.31 * consang) + (0.15 * (delay > 6 ? 1 : 0));
-      let probability = 1 / (1 + Math.exp(-logOdds));
-      let percent = (probability * 100).toFixed(1);
-
-      // Risk category
-      let category = '';
-      if (probability >= 0.65) category = 'High';
-      else if (probability >= 0.40) category = 'Moderate';
-      else category = 'Low';
-
-      document.getElementById("result").innerHTML =
-        `Estimated Risk: ${percent}%<br>Risk Category: <strong>${category}</strong>`;
+    function calculateProbability(inputs) {
+      const linearSum =
+        coef.intercept +
+        coef.age * inputs.age +
+        coef.syndromic * inputs.syndromic +
+        coef.delayed * inputs.delayed +
+        coef.seizures * inputs.seizures +
+        coef.positive * inputs.positive +
+        coef.consang * inputs.consang;
+      const probability = 1 / (1 + Math.exp(-linearSum));
+      return probability;
     }
+
+    function getRiskCategory(probability) {
+      if (probability >= 0.7) return "High Risk";
+      else if (probability >= 0.4) return "Moderate Risk";
+      else return "Low Risk";
+    }
+
+    document.getElementById("riskForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      const inputs = {
+        age: parseFloat(document.getElementById("age").value),
+        syndromic: parseInt(document.getElementById("syndromic").value),
+        delayed: parseInt(document.getElementById("delayed").value),
+        seizures: parseInt(document.getElementById("seizures").value),
+        positive: parseInt(document.getElementById("positive").value),
+        consang: parseInt(document.getElementById("consang").value)
+      };
+
+      const prob = calculateProbability(inputs);
+      const category = getRiskCategory(prob);
+
+      document.getElementById("result").innerText =
+        `Predicted Diagnostic Yield: ${(prob * 100).toFixed(1)}%\nRisk Category: ${category}`;
+    });
   </script>
 </body>
 </html>
